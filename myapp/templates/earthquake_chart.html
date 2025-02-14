@@ -1,0 +1,88 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Earthquake Map</title>
+{#    引入bootstrap#}
+    <style rel="{% static 'plugins/bootstrap-3.4.1/css/bootstrap.min.css' %}"></style>
+    <!-- 引入 ECharts -->
+    <script src="{% static 'js/echarts.min.js' %}"></script>
+    <!-- 引入世界地图的 JavaScript 文件 -->
+    <script src="{% static 'js/world.js' %}"></script>
+    <script src="{% static 'js/echarts-gl.min.js' %}"></script>
+</head>
+<body>
+<div class="container">
+    <div id="map" style="width: 100%; height: 600px;"></div>
+</div>
+
+    <script>
+        //初始化Echarts实例
+        var myChart = echarts.init(document.getElementById('map'));
+        //获取地震数据集
+        var earthquakeData={{ earthquake_data }};
+                // 地震数据
+        {#var earthquakeData = [#}
+        {#    [118.2437, 34.0522, 5.0],  // [经度, 纬度, 震级]#}
+        {#    [-74.0060, 40.7128, 6.0],#}
+        {#    [-0.1278, 51.5074, 4.5]#}
+        {#];#}
+
+        //配置项
+        var option={
+            title:{
+                text:"全球地震分布图",
+                left:"center",
+            },
+            tooltip:{//自定义提示框的内容
+                formatter:function (params) {
+                    return params.name+'<br/>Magnitude:'+params.value[2];
+                },
+                triggerOn:'mousemove'
+            },
+            geo:{
+                map:'world',
+                roam:true,
+                itemStyle: {
+                    areaColor: '#323c48',//地图区域颜色
+                    borderColor: '#111'//地图边界颜色
+                }
+            },
+            visualMap:{//定义数据到颜色的映射
+                type: 'continuous',//连续型
+                min:4,
+                max:10,
+                dimension:2,
+                calculable:true,
+                inRange:{
+                    color:['#50a3ba', '#eac736', '#d94e5d', '#ff0000']//颜色范围
+                },
+                textStyle:{
+                    color:"#333"
+                },
+                orient:'horizontal',//调整图例的方向为水平
+                right:'12%',
+                top:'0%'
+            },
+            series:[//定义图表中的系列
+                {
+                    name:'Earthquakes',
+                    type:'scatterGL',
+                    coordinateSystem:'geo',//使用地理坐标系
+                    data:earthquakeData,//地震数据
+                    symbolSize:function (earthquakeData) {
+                        return earthquakeData[2]*3;
+                    },
+                    encode:{
+                        value:2
+                    }
+                },
+            ]
+        };
+        //使用配置项显示图表
+        myChart.setOption(option);
+    </script>
+
+</body>
+</html>

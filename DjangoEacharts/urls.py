@@ -21,5 +21,6 @@ from myapp.views import charts
 urlpatterns = [
     #    path('admin/', admin.site.urls),
     #图表：
+    path('charts/earthquake', charts.earthquake_chart),
 
 ]
