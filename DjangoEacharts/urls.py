@@ -22,5 +22,6 @@ urlpatterns = [
     #    path('admin/', admin.site.urls),
     #图表：
     path('charts/earthquake', charts.earthquake_chart),
+    path('charts/china_earthquake', charts.china_earthquake_chart),
 
 ]

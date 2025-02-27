@@ -25,3 +25,6 @@ def earthquake_chart(request):
         data.append([row['lon_bin'],row['lat_bin'],row['mag'],row['latitude']])
     context={'earthquake_data':data}
     return render(request, 'earthquake_chart.html',context)
+
+def china_earthquake_chart(request):
+    return render(request, 'china_earthquake_charts.html')

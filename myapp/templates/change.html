@@ -1,0 +1,27 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Earthquake Map</title>
+{#    引入bootstrap#}
+    <style rel="{% static 'plugins/bootstrap-3.4.1/css/bootstrap.min.css' %}"></style>
+    {% block css %}
+    	
+    {% endblock %}
+</head>
+<body>
+
+{% block content %}
+
+{% endblock %}
+
+<script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
+    <!-- 引入 ECharts -->
+<script src="{% static 'js/echarts.min.js' %}"></script>
+<script src="{% static 'plugins/bootstrap-3.4.1/js/bootstrap.min.js' %}"></script>
+{% block js %}
+
+{% endblock %}
+</body>
+</html>
