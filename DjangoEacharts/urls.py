@@ -17,11 +17,16 @@ Including another URLconf
 # from django.contrib import admin
 from django.urls import path
 from myapp.views import charts
+from myapp.views import cluster
+from myapp.views import data
 
 urlpatterns = [
     #    path('admin/', admin.site.urls),
-    #图表：
-    path('charts/earthquake', charts.earthquake_chart),
-    path('charts/china_earthquake', charts.china_earthquake_chart),
-
+    # 图表：
+    path ( 'charts/earthquake' , charts.earthquake_chart ) ,
+    path ( 'charts/china_earthquake' , charts.china_earthquake_chart ) ,
+    path ( 'map/' , cluster.cluster_map , name = 'map_page' ) ,
+    path ( 'year-data/' , cluster.year_data , name = 'year_data' ) ,
+    path ( 'analysis/' , cluster.earthquake_analysis , name = 'analysis_page' ) ,
+    # path('data/',data.get_earthquake_data,name='earthquake-data'),
 ]

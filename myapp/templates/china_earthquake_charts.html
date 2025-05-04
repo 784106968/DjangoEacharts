@@ -1,5 +1,8 @@
 {% extends 'change.html' %}
 {% load static %}
+{% block title %}
+	China-Earthquakes
+{% endblock %}
 {% block css %}
 
 {% endblock %}
@@ -274,19 +277,34 @@
         var colorIndex = 0;
         $(function () {
             var year = ["2021.06", "2021.07", "2021.08", "2021.09", "2021.10", "2021.11"];
+            {#mapData是一个数组嵌套数组嵌套字典的结构#}
             var mapData = [
                 [],
                 [],
                 [],
                 [],
                 [],
-                []
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
             ];
 
             /*柱子Y名称*/
             var categoryData = [];
             var barData = [];
-
+            {#key第一次遍历：key=台湾,value=d1['台湾'],所以value赋值应为台湾在2021.06的数据信息，往后一次类推#}
             for (var key in geoCoordMap) {
                 mapData[0].push({
                     "year": '2021.06',
@@ -320,13 +338,14 @@
                 });
 
             }
-
             for (var i = 0; i < mapData.length; i++) {
+                {#排序函数，将mapData[i]中的所有value值按照从小到大排列，a代表mapData[i].value#}
                 mapData[i].sort(function sortNumber(a, b) {
                     return a.value - b.value
                 });
                 barData.push([]);
                 categoryData.push([]);
+                {#barData储存对应城市的值，categoryData储存对应城市#}
                 for (var j = 0; j < mapData[i].length; j++) {
                     barData[i].push(mapData[i][j].value);
                     categoryData[i].push(mapData[i][j].name);

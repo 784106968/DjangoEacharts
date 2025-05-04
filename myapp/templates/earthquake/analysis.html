@@ -1,0 +1,153 @@
+{% extends 'change.html' %}
+{% load static %}
+{% block title %}
+    地震时空聚类分析
+{% endblock %}
+{% block head %}
+    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.0/echarts.min.js"></script>
+{% endblock %}
+{% block css %}
+    <style>
+        body {
+            margin: 0;
+            padding: 2rem;
+            background: #f8f9fa;
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            margin-bottom: 2rem;
+            padding: 2rem;
+        }
+
+        #lineChart, #barChart {
+            width: 100%;
+            height: 600px;
+        }
+    </style>
+{% endblock %}
+{% block content %}
+    <!-- 折线图容器 -->
+    <div class="chart-container">
+        <div id="lineChart"></div>
+    </div>
+
+    <!-- 柱状图容器 -->
+    <div class="chart-container">
+        <div id="barChart"></div>
+    </div>
+
+{% endblock %}
+{% block js %}
+    <script>
+        // 从 Django 模板变量解析数据
+        const rawYears = JSON.parse("{{ years|escapejs }}");
+        const rawTrends = JSON.parse("{{ trends|escapejs }}");
+        const rawTotal = JSON.parse("{{ total|escapejs }}");
+
+        // 数据格式转换
+        const years = rawYears;
+        const trends = rawTrends;
+        const total = rawTotal;
+
+        // 初始化图表
+        document.addEventListener('DOMContentLoaded', function () {
+            // 折线图配置
+            const lineChart = echarts.init(document.getElementById('lineChart'));
+            lineChart.setOption({
+                title: {text: '地震簇分布趋势', left: 'center'},
+                tooltip: {trigger: 'axis'},
+                legend: {
+                    type: 'scroll',
+                    top: 30,
+                    itemWidth: 16,
+                    itemHeight: 10,
+                    textStyle: {
+                        color: '#666'
+                    },
+                    data: Object.keys(trends).map(cid => `Cluster ${cid}`)
+                },
+                grid: {
+                    // 图表主体区域距离顶部 80px（留出图例空间）
+                    top: 80,
+                    // 其他边距保持不变
+                    left: '10%',
+                    right: '10%',
+                    bottom: '15%'
+                },
+                xAxis: {
+                    type: 'category',
+                    data: years,
+                    axisLabel: {rotate: 45}
+                },
+                yAxis: {type: 'value'},
+                series: Object.entries(trends).map(([cid, data], index) => ({
+                    name: `Cluster ${cid}`,
+                    type: 'line',
+                    smooth: true,
+                    symbolSize: 8,
+                    itemStyle: {
+                        color: [
+                            //'#5470c6', '#91cc75', '#fac858', '#ee6666',
+                            //'#73c0de', '#3ba272', '#fc8452', '#9a60b4',
+                            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
+                            '#FFEEAD', '#FF9999', '#6B7A8F', '#D4A5A5'
+                        ][index % 8]
+                    },
+                    areaStyle: {
+                        //color: '#94C9EC'
+                        color: new echarts.graphic.LinearGradient(0, 1, 0, 0, [{
+                            offset: 0,
+                            color: "rgba(160, 208, 255,0.3)",
+                        },
+                            {
+                                offset: 1,
+                                color: "rgba(160, 208, 255,0.9)",
+                            },
+                        ]),
+                    },
+                    data: data
+                }))
+            });
+
+            // 柱状图配置
+            const barChart = echarts.init(document.getElementById('barChart'));
+            barChart.setOption({
+                title: {text: '年度地震总量', left: 'center'},
+                tooltip: {trigger: 'axis'},
+                xAxis: {
+                    type: 'category',
+                    data: years,
+                    axisLabel: {rotate: 45}
+                },
+                yAxis: {type: 'value'},
+                series: [{
+                    type: 'bar',
+                    data: total,
+                    itemStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            {offset: 0, color: '#36a1db'},
+                            {offset: 1, color: '#8ac8f9'}
+                        ])
+                    }
+                }]
+            });
+
+            // 图例点击联动
+            lineChart.on('legendselectchanged', params => {
+                const selected = params.selected;
+                const visibleData = years.map((year, idx) =>
+                    Object.keys(selected)
+                        .filter(key => selected[key])
+                        .reduce((sum, key) => sum + trends[key.replace('Cluster ', '')][idx], 0)
+                );
+                barChart.setOption({
+                    series: [{data: visibleData}]
+                });
+            });
+        });
+    </script>
+{% endblock %}

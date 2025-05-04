@@ -1,0 +1,331 @@
+{% extends 'change.html' %}
+{% load static %}
+{% block title %}
+    地震时空聚类可视化
+{% endblock %}
+{% block head %}
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;500&display=swap" rel="stylesheet">
+
+{% endblock %}
+{% block css %}
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --background: #f8f9fa;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Roboto', sans-serif;
+            background: var(--background);
+        }
+
+        /* 主容器 */
+        .dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 30px;
+        }
+
+        /* 控制面板 */
+        .control-panel {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 年份选择器 */
+        .year-select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s;
+            background: url("data:image/svg+xml;charset=UTF-8,%3csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M7 10l5 5 5-5' stroke='%232c3e50' stroke-width='2'/%3e%3c/svg%3e") no-repeat right 12px center;
+            appearance: none;
+        }
+
+        .year-select:focus {
+            border-color: var(--secondary-color);
+            outline: none;
+        }
+
+        /* 地图容器 */
+        #map {
+            height: 700px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        /* 图例 */
+        .legend {
+            margin-top: 30px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 12px 0;
+            padding: 10px;
+            border-radius: 6px;
+            transition: background 0.3s;
+        }
+
+        .legend-item:hover {
+            background: #f5f6f8;
+        }
+
+        .legend-color {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            margin-right: 15px;
+        }
+
+        /* 模态框样式 */
+        #cluster-modal {
+            display: none;
+            position: absolute; /* 改为绝对定位 */
+            z-index: 1000;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            pointer-events: none; /* 防止模态框遮挡鼠标事件 */
+        }
+
+        #cluster-modal.modal-visible {
+            display: block;
+            opacity: 1;
+        }
+
+        .modal-visible {
+            opacity: 1 !important;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+
+            #map {
+                height: 500px;
+            }
+        }
+    </style>
+
+{% endblock %}
+{% block content %}
+    <div class="dashboard">
+        <!-- 左侧控制面板 -->
+        <div class="control-panel">
+            <h2>📊 数据控制</h2>
+            <select class="year-select" id="year-select" onchange="refreshMap(this.value)">
+                {% for year in years %}
+                    <option value="{{ year }}">{{ year }}</option>
+                {% endfor %}
+            </select>
+
+            <!-- 图例 -->
+            <div class="legend">
+                <h3>🗺️ 聚类簇说明</h3>
+                <div id="legend-items"></div>
+            </div>
+        </div>
+
+        <!-- 右侧地图 -->
+        <div id="map"></div>
+    </div>
+
+    <!-- 模态框 -->
+    <div id="cluster-modal">
+        <h4>🔍 簇详细信息</h4>
+        <p>年份: <span id="modal-year"></span></p>
+        <p>纬度: <span id="modal-lat"></span></p>
+        <p>经度: <span id="modal-lng"></span></p>
+        <p>平均震级: <span id="modal-magnitude"></span></p>
+        <p>地震次数: <span id="modal-count"></span></p>
+    </div>
+{% endblock %}
+{% block js %}
+    <script>
+        let chart = null;
+        const defaultGeoJSON = "/static/js/geojson/100000_full.json";
+        // 定义 8 种颜色（可自定义）
+        const clusterColors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
+            '#FFEEAD', '#FF9999', '#6B7A8F', '#D4A5A5'
+        ];
+        // 2. 定义 ECharts 主题
+        const chartTheme = {
+            backgroundColor: 'transparent',
+            title: {
+                textStyle: {
+                    color: '#2c3e50',
+                    fontSize: 20
+                }
+            },
+            geo: {
+                itemStyle: {
+                    borderColor: '#bdc3c7',
+                    areaColor: '#ecf0f1'
+                }
+            }
+        };
+
+        // 初始化地图
+        function initMap() {
+            $.getJSON(defaultGeoJSON, function (geoJson) {
+                echarts.registerMap('china', geoJson);
+                chart = echarts.init(document.getElementById('map'));
+                refreshMap({{ current_year }});  // 初始加载当前年数据
+            }).fail(() => {
+                alert('地图数据加载失败，请检查网络连接');
+            });
+        }
+
+        // 更新地图数据
+        function refreshMap(year) {
+            $.ajax({
+                url: "{% url 'year_data' %}",
+                data: {year: year},
+                success: function (response) {
+                    if (response.data && response.data.length > 0) {
+                        updateChart(year, response.data);
+                    } else {
+                        chart.setOption({title: {text: year + '年无地震数据'}});
+                    }
+                },
+                error: function () {
+                    alert('数据加载失败');
+                }
+            });
+        }
+
+        function updateLegend() {
+            const legendItems = document.getElementById("legend-items");
+            legendItems.innerHTML = "";  // 清空旧内容
+
+            // 为每个簇生成图例项
+            clusterColors.forEach((color, clusterId) => {
+                const item = document.createElement("div");
+                item.style.display = "flex";
+                item.style.alignItems = "center";
+                item.style.margin = "8px 0";
+
+                item.innerHTML = `
+            <div style="width: 20px; height: 20px; background: ${color}; border-radius: 4px; margin-right: 10px;"></div>
+            <span>簇 ${clusterId}</span>
+        `;
+
+                legendItems.appendChild(item);
+            });
+        }
+
+        // 更新图表配置
+        function updateChart(year, data) {
+            // 清除旧事件监听器
+            chart.off("mouseover");
+            chart.off("globalout");
+            const option = {
+                title: {text: year + '年中国地震聚类分布', top: 15, left: 15},
+                geo: {
+                    map: 'china',
+                    roam: true,
+                    boundingCoords: [[73, 54], [135, 18]],
+                    itemStyle: {areaColor: '#f7f8fa'}
+                },
+                visualMap: {
+                    type: "piecewise",
+                    show: false,  // 隐藏 ECharts 默认图例（用自定义图例替代）
+                    categories: [0, 1, 2, 3, 4, 5, 6, 7],
+                    dimension: 5,  // 使用数据第6列（cluster_id）作为颜色依据
+                    inRange: {color: clusterColors}
+                },
+                series: [{
+                    type: 'effectScatter',
+                    coordinateSystem: 'geo',
+                    {#data: data,#}
+                    data: data.map(d => [...d, d[4]]),  // 添加 cluster_id 到数据末尾（假设数据第5列是 cluster_id）
+                    symbolSize: val => Math.sqrt(val[2]) * 8,
+                    itemStyle: {
+                        color: params => clusterColors[params.data[5]]  // 根据 cluster_id 取颜色
+                    },
+                    emphasis: {
+                        scale: 1.2,  // 悬停放大效果
+                        itemStyle: {
+                            shadowBlur: 20,
+                            shadowColor: 'rgba(0, 0, 0, 0.3)'
+                        }
+                    },
+                    animationDuration: 800,  // 更平滑的过渡
+                    animationEasing: 'cubicOut'
+                }]
+            };
+            chart.setOption(option);
+            // 更新自定义图例
+            updateLegend();
+
+            // 绑定悬停事件
+            chart.on("mouseover", params => {
+                showTooltip(params);
+            });
+            // 绑定全局移出事件（鼠标离开图表区域时隐藏）
+            chart.on("globalout", () => {
+                hideTooltip();
+            });
+
+            // 显示模态框
+            function showTooltip(params) {
+                const [lng, lat, count, year, magnitude, clusterId] = params.data;
+
+                // 更新内容
+                document.getElementById("modal-year").textContent = year;
+                document.getElementById("modal-lat").textContent = lat.toFixed(6);
+                document.getElementById("modal-lng").textContent = lng.toFixed(6);
+                document.getElementById("modal-magnitude").textContent = magnitude.toFixed(2);
+                document.getElementById("modal-count").textContent = count;
+
+                // 显示模态框
+                const tooltip = document.getElementById("cluster-modal");
+                tooltip.style.display = "block";
+                tooltip.style.opacity = "1";
+                tooltip.style.left = `${params.event.event.clientX + 15}px`;
+                tooltip.style.top = `${params.event.event.clientY + 15}px`;
+            }
+
+            // 隐藏模态框
+            function hideTooltip() {
+                const tooltip = document.getElementById("cluster-modal");
+                tooltip.style.opacity = "0";
+                setTimeout(() => {
+                    tooltip.classList.remove("modal-visible");
+                }, 300);
+            }
+
+            // 事件绑定（确保鼠标移出时隐藏）
+            chart.on("mouseover", params => {
+                if (params.componentType === "series" && params.seriesType === "scatter") {
+                    showTooltip(params);
+                }
+            });
+            chart.on("mouseout", () => {
+                hideTooltip(); // 直接响应 mouseout 事件
+            });
+
+        }
+
+        // 页面加载完成后初始化
+        $(document).ready(initMap);
+    </script>
+{% endblock %}

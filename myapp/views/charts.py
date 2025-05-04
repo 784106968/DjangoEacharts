@@ -1,6 +1,7 @@
 import pandas as pd
 from django.shortcuts import render
 from myapp.utils.Pretreatment import data_dispose
+from myapp.utils.TransferInDatabase import import_excel_to_db
 
 def earthquake_chart(request):
     #读取CSV文件
@@ -25,6 +26,8 @@ def earthquake_chart(request):
         data.append([row['lon_bin'],row['lat_bin'],row['mag'],row['latitude']])
     context={'earthquake_data':data}
     return render(request, 'earthquake_chart.html',context)
+
+
 
 def china_earthquake_chart(request):
     return render(request, 'china_earthquake_charts.html')
